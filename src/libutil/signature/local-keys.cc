@@ -25,7 +25,10 @@ std::pair<std::string, std::string> parseColonBase64(std::string_view s, std::st
         throw FormatError("%s is corrupt", typeName);
 
     auto name = std::string(s.substr(0, colon));
-    auto data = base64::decode(s.substr(colon + 1));
+    auto hash_part = s.substr(colon + 1);
+    auto res = base64::decode(hash_part);
+    res.warn_if_bad(hash_part);
+    auto data = res.hash_bytes;
 
     if (name.empty() || data.empty())
         throw FormatError("%s is corrupt", typeName);

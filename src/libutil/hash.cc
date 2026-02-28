@@ -149,17 +149,18 @@ static Hash parseLowLevel(
     const ExperimentalFeatureSettings & xpSettings = experimentalFeatureSettings)
 {
     Hash res{algo, xpSettings};
-    std::string d;
+    hash_decode::Result d;
     try {
         d = pair.decode(rest);
     } catch (Error & e) {
         e.addTrace({}, "While decoding hash '%s'", rest);
     }
-    if (d.size() != res.hashSize)
+    if (d.hash_bytes.size() != res.hashSize)
         throw BadHash(
-            "invalid %s hash '%s', length %d != expected length %d", pair.encodingName, rest, d.size(), res.hashSize);
+            "invalid %s hash '%s', length %d != expected length %d", pair.encodingName, rest, d.hash_bytes.size(), res.hashSize);
+    d.warn_if_bad(rest);
     assert(res.hashSize);
-    memcpy(res.hash, d.data(), res.hashSize);
+    memcpy(res.hash, d.hash_bytes.data(), res.hashSize);
 
     return res;
 }

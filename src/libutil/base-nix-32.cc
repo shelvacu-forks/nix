@@ -39,7 +39,7 @@ std::string BaseNix32::encode(std::span<const std::byte> bs)
     return s;
 }
 
-std::string BaseNix32::decode(std::string_view s)
+hash_decode::Result BaseNix32::decode(std::string_view s)
 {
     std::string res;
     res.reserve((s.size() * 5 + 7) / 8); // ceiling(size * 5/8)
@@ -67,7 +67,10 @@ std::string BaseNix32::decode(std::string_view s)
         }
     }
 
-    return res;
+    return {
+        .hash_bytes = res,
+        .parse_finished_at = s.size(),
+    };
 }
 
 } // namespace nix

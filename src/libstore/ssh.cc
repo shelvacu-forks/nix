@@ -12,7 +12,7 @@ namespace nix {
 static std::string parsePublicHostKey(std::string_view host, std::string_view sshPublicHostKey)
 {
     try {
-        return base64::decode(sshPublicHostKey);
+        return base64::decode(sshPublicHostKey).warn_if_bad(sshPublicHostKey);
     } catch (Error & e) {
         e.addTrace({}, "while decoding ssh public host key for host '%s'", host);
         throw;

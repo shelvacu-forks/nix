@@ -14,7 +14,7 @@ MakeError(BadHash, Error);
 enum struct HashAlgorithm : char { MD5 = 42, SHA1, SHA256, SHA512, BLAKE3 };
 
 /**
- * @return the size of a hash for the given algorithm
+ * @return the size of a hash in bytes for the given algorithm
  */
 constexpr inline size_t regularHashSize(HashAlgorithm type)
 {

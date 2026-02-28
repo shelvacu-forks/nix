@@ -3,6 +3,7 @@
 
 #include <string>
 #include <span>
+#include "nix/util/hash_decode.hh"
 
 namespace nix {
 
@@ -24,7 +25,7 @@ std::string encode(std::span<const std::byte> b);
 /**
  * Decode arbitrary Base16 string to bytes.
  */
-std::string decode(std::string_view s);
+hash_decode::Result decode(std::string_view s);
 
 } // namespace base16
 
@@ -46,7 +47,7 @@ std::string encode(std::span<const std::byte> b);
 /**
  * Decode arbitrary Base64 string to bytes.
  */
-std::string decode(std::string_view s);
+hash_decode::Result decode(std::string_view s);
 
 } // namespace base64
 

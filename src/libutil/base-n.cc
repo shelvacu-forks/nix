@@ -21,7 +21,7 @@ std::string base16::encode(std::span<const std::byte> b)
     return buf;
 }
 
-std::string base16::decode(std::string_view s)
+hash_decode::Result base16::decode(std::string_view s)
 {
     auto parseHexDigit = [&](char c) {
         if (c >= '0' && c <= '9')
@@ -43,7 +43,10 @@ std::string base16::decode(std::string_view s)
         res.push_back(parseHexDigit(s[i * 2]) << 4 | parseHexDigit(s[i * 2 + 1]));
     }
 
-    return res;
+    return {
+        .hash_bytes = res,
+        .parse_finished_at = s.size(),
+    };
 }
 
 constexpr static const std::array<char, 64> base64Chars =
@@ -72,7 +75,7 @@ std::string base64::encode(std::span<const std::byte> s)
     return res;
 }
 
-std::string base64::decode(std::string_view s)
+hash_decode::Result base64::decode(std::string_view s)
 {
     constexpr char npos = -1;
     constexpr std::array<char, 256> base64DecodeChars = [&] {
@@ -88,27 +91,61 @@ std::string base64::decode(std::string_view s)
     // Some sequences are missing the padding consisting of up to two '='.
     //                    vvv
     res.reserve((s.size() + 2) / 4 * 3);
-    unsigned int d = 0, bits = 0;
+    unsigned int d = 0, bits = 0, char_count = 0, padding_count = 0;
+    size_t padding_idx[2] = { SIZE_MAX, SIZE_MAX };
+    size_t i = 0;
 
-    for (char c : s) {
-        if (c == '=')
-            break;
+    for (; i < s.size(); i++) {
+        char c = s[i];
         if (c == '\n')
             continue;
+        if (padding_count > 0 && c != '=')
+            break;
+        if (c == '=') {
+            padding_idx[padding_count] = i;
+            padding_count += 1;
+            if (padding_count >= 2)
+                break;
+        } else {
+            char digit = base64DecodeChars[(unsigned char) c];
+            if (digit == npos)
+                throw FormatError("invalid character in Base64 string: '%c'", c);
+            char_count += 1;
 
-        char digit = base64DecodeChars[(unsigned char) c];
-        if (digit == npos)
-            throw FormatError("invalid character in Base64 string: '%c'", c);
-
-        bits += 6;
-        d = d << 6 | digit;
-        if (bits >= 8) {
-            res.push_back(d >> (bits - 8) & 0xff);
-            bits -= 8;
+            bits += 6;
+            d = d << 6 | digit;
+            if (bits >= 8) {
+                res.push_back(d >> (bits - 8) & 0xff);
+                bits -= 8;
+            }
         }
     }
 
-    return res;
+    hash_decode::TrailingBits trailing_bits = {
+        .bit_count = (uint8_t)bits,
+        .data = (uint8_t)d,
+    };
+
+    unsigned int expected_padding = char_count % 3;
+
+    hash_decode::MissingPadding missing_padding;
+    size_t parse_finished_at;
+
+    if (padding_count <= expected_padding) {
+        missing_padding = (hash_decode::MissingPadding)(expected_padding - padding_count);
+        parse_finished_at = i;
+    } else {
+        missing_padding = hash_decode::MissingPadding::Correct;
+        parse_finished_at = padding_idx[expected_padding];
+        assert(parse_finished_at != SIZE_MAX);
+    }
+
+    return {
+        .hash_bytes = res,
+        .parse_finished_at = parse_finished_at,
+        .trailing = trailing_bits,
+        .padding = missing_padding,
+    };
 }
 
 } // namespace nix
